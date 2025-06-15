@@ -15,57 +15,64 @@ export async function handleGenerateRecipeAction(
   formData: FormData
 ): Promise<{ recipe?: GenerateRecipeOutput; error?: string; inputError?: string }> {
   const rawIngredients = formData.get('ingredients');
+  console.log('[Action] Received raw ingredients from form:', rawIngredients);
   
   const validatedFields = ingredientsSchema.safeParse({
     ingredients: rawIngredients,
   });
 
   if (!validatedFields.success) {
+    const inputError = validatedFields.error.flatten().fieldErrors.ingredients?.[0] ?? "Invalid input.";
+    console.error('[Action] Input validation failed:', inputError);
     return {
-      inputError: validatedFields.error.flatten().fieldErrors.ingredients?.[0] ?? "Invalid input.",
+      inputError: inputError,
     };
   }
 
   const ingredients = validatedFields.data.ingredients;
+  console.log('[Action] Validated ingredients, calling generateRecipe flow with:', ingredients);
 
   try {
-    // The generateRecipe flow (and its Zod output schema) is responsible for ensuring
-    // the output structure is correct. If not, it should throw an error.
     const recipeOutput = await generateRecipe({ ingredients } as GenerateRecipeInput);
+    console.log('[Action] Received output from generateRecipe flow:', recipeOutput);
     
-    // Defensive check, though Genkit's Zod validation + output! in flow should handle this.
     if (!recipeOutput || typeof recipeOutput.recipeName !== 'string' || typeof recipeOutput.instructions !== 'string') {
-        console.error("AI returned incomplete or malformed recipe structure:", recipeOutput);
+        console.error("[Action] AI returned incomplete or malformed recipe structure:", recipeOutput);
         return { error: "Failed to generate a complete recipe. The AI returned an unexpected or incomplete structure. Please try again." };
     }
     
-    // Ensure ingredients is an array, default to empty if missing or not an array.
-    // Zod schema z.array(z.string()) should ensure it's an array (possibly empty).
     const finalRecipeOutput: GenerateRecipeOutput = {
         ...recipeOutput,
         ingredients: Array.isArray(recipeOutput.ingredients) ? recipeOutput.ingredients : [],
     };
     
+    console.log('[Action] Successfully processed recipe:', finalRecipeOutput.recipeName);
     return { recipe: finalRecipeOutput };
   } catch (e: unknown) {
-    console.error("Error in handleGenerateRecipeAction (full error object):", e);
+    console.error("[Action] Error during recipe generation (full error object):", e);
     let errorMessage = "An unexpected error occurred while generating the recipe. This could be due to network issues or an internal AI service problem. Please try again later.";
     if (e instanceof Error) {
       errorMessage = e.message;
+      console.error("[Action] Error message:", e.message);
+      if (e.stack) {
+        console.error("[Action] Error stack:", e.stack);
+      }
     } else if (typeof e === 'string') {
       errorMessage = e;
+      console.error("[Action] Error (string):", e);
     } else if (e && typeof e === 'object' && 'message' in e && typeof e.message === 'string') {
       errorMessage = e.message;
+       console.error("[Action] Error (object with message):", e.message);
     } else {
-      // Attempt to get a more detailed error string if it's some other object.
       try {
-        errorMessage = `Genkit flow error: ${JSON.stringify(e)}`;
-      } catch {
-        // Fallback if stringify fails
-        errorMessage = "An unknown error occurred in the recipe generation flow.";
+        const errorString = JSON.stringify(e);
+        errorMessage = `Genkit flow error: ${errorString}`;
+        console.error("[Action] Error (non-standard, stringified):", errorString);
+      } catch (stringifyError) {
+        console.error("[Action] Error stringifying non-standard error:", stringifyError);
+        errorMessage = "An unknown error occurred in the recipe generation flow, and the error itself could not be stringified.";
       }
     }
     return { error: errorMessage };
   }
 }
-

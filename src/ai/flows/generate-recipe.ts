@@ -29,19 +29,23 @@ export type GenerateRecipeOutput = z.infer<typeof GenerateRecipeOutputSchema>;
 const isStapleTool = ai.defineTool(
   {
     name: 'isStaple',
-    description: 'Checks if an ingredient is a common kitchen staple (like salt, pepper, water, oil, sugar). Call this for each ingredient provided by the user.',
+    description: 'Checks if an ingredient is a common kitchen staple (like salt, pepper, water, oil, sugar, flour, butter, eggs, milk). Call this for each ingredient provided by the user.',
     inputSchema: z.object({
       ingredient: z.string().describe('The ingredient to check.'),
     }),
     outputSchema: z.boolean(),
   },
   async (input) => {
+    console.log('[isStapleTool] Checking ingredient:', input.ingredient);
     const stapleIngredients = ['salt', 'pepper', 'water', 'oil', 'sugar', 'flour', 'butter', 'eggs', 'milk']; // Expanded list
-    return stapleIngredients.includes(input.ingredient.toLowerCase().trim());
+    const result = stapleIngredients.includes(input.ingredient.toLowerCase().trim());
+    console.log('[isStapleTool] Is staple?', result);
+    return result;
   }
 );
 
 export async function generateRecipe(input: GenerateRecipeInput): Promise<GenerateRecipeOutput> {
+  console.log('[Flow:generateRecipe] Exported function called with input:', input);
   return generateRecipeFlow(input);
 }
 
@@ -71,10 +75,22 @@ const generateRecipeFlow = ai.defineFlow(
     inputSchema: GenerateRecipeInputSchema,
     outputSchema: GenerateRecipeOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
-    // The output! will throw if output is null/undefined, which Genkit/Zod should prevent if schema validation fails.
-    return output!;
+  async (input: GenerateRecipeInput) => {
+    console.log('[Flow:generateRecipeFlow] Flow started with input:', input);
+    try {
+      const {output, history} = await prompt(input);
+      console.log('[Flow:generateRecipeFlow] Prompt output received:', output);
+      if (history) {
+        console.log('[Flow:generateRecipeFlow] Prompt history:', JSON.stringify(history, null, 2));
+      }
+      if (!output) {
+        console.error('[Flow:generateRecipeFlow] Prompt returned null or undefined output.');
+        throw new Error('AI prompt returned no output.');
+      }
+      return output;
+    } catch (error) {
+      console.error('[Flow:generateRecipeFlow] Error during prompt execution:', error);
+      throw error; // Re-throw the error to be caught by the server action
+    }
   }
 );
-

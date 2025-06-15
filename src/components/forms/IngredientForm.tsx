@@ -1,15 +1,15 @@
+
 // @ts-nocheck
 // TODO: Fix this file
 'use client';
 
-import { useActionState } from 'react'; // Changed from 'react-dom'
+import { useActionState, useEffect, useRef } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Sparkles, Loader2 } from 'lucide-react';
 import type { GenerateRecipeOutput } from '@/ai/flows/generate-recipe';
-import { useEffect, useRef } from 'react';
 
 interface IngredientFormProps {
   formAction: (prevState: any, formData: FormData) => Promise<{ recipe?: GenerateRecipeOutput; error?: string; inputError?: string }>;
@@ -44,26 +44,30 @@ function SubmitButton() {
 
 export function IngredientForm({ formAction, onRecipeGenerated, onError }: IngredientFormProps) {
   const initialState: { recipe?: GenerateRecipeOutput; error?: string; inputError?: string } = {};
-  const [state, dispatch] = useActionState(formAction, initialState); // Changed from useFormState
+  const [state, dispatch] = useActionState(formAction, initialState);
   const formRef = useRef<HTMLFormElement>(null);
   const ingredientsTextAreaRef = useRef<HTMLTextAreaElement>(null);
 
-
   useEffect(() => {
+    console.log('[IngredientForm] Form state changed:', state);
     if (state?.recipe) {
+      console.log('[IngredientForm] Recipe generated, calling onRecipeGenerated.');
       onRecipeGenerated(state.recipe);
       if (formRef.current) {
         formRef.current.reset(); 
       }
-       // Focus back to the textarea after successful submission and form reset for better UX
       if (ingredientsTextAreaRef.current) {
         ingredientsTextAreaRef.current.focus();
       }
     }
-    // Only call onError if there's an error message and no recipe was generated.
-    // This prevents showing an error toast if there was a previous error but a new recipe is successfully generated.
+    
     if (state?.error && !state?.recipe) {
+      console.error('[IngredientForm] Error received from action, calling onError:', state.error);
       onError(state.error);
+    }
+    if (state?.inputError && !state?.recipe) {
+      console.warn('[IngredientForm] Input error received from action:', state.inputError);
+      // Input error is displayed directly, not calling onError (which is for toasts)
     }
   }, [state, onRecipeGenerated, onError]);
 
@@ -84,7 +88,7 @@ export function IngredientForm({ formAction, onRecipeGenerated, onError }: Ingre
           required
           aria-invalid={!!state?.inputError}
         />
-        {state?.inputError && !state?.recipe && ( // Only show input error if there's no recipe (i.e., current submission failed)
+        {state?.inputError && !state?.recipe && (
           <p id="ingredients-error" className="mt-2 text-sm text-destructive font-medium">
             {state.inputError}
           </p>

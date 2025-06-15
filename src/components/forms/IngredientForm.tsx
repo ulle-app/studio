@@ -2,7 +2,8 @@
 // TODO: Fix this file
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState } from 'react'; // Changed from 'react-dom'
+import { useFormStatus } from 'react-dom';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -43,7 +44,7 @@ function SubmitButton() {
 
 export function IngredientForm({ formAction, onRecipeGenerated, onError }: IngredientFormProps) {
   const initialState: { recipe?: GenerateRecipeOutput; error?: string; inputError?: string } = {};
-  const [state, dispatch] = useFormState(formAction, initialState);
+  const [state, dispatch] = useActionState(formAction, initialState); // Changed from useFormState
   const formRef = useRef<HTMLFormElement>(null);
   const ingredientsTextAreaRef = useRef<HTMLTextAreaElement>(null);
 

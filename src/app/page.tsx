@@ -39,7 +39,7 @@ export default function HomePage() {
   const { toast } = useToast();
 
   const handleRecipeGenerated = useCallback(async (recipe: GenerateRecipeOutput) => {
-    console.log('[HomePage] handleRecipeGenerated called with English recipe:', recipe);
+    console.log('[HomePage] handleRecipeGenerated called. Recipe Name (EN):', recipe.recipeName);
     setCurrentEnglishRecipe(recipe);
     setCurrentHindiRecipe(null); 
     setCurrentLanguage('en'); 
@@ -73,7 +73,7 @@ export default function HomePage() {
     setIsTranslating(false);
 
     if (translationResult.hindiRecipe) {
-      console.log('[HomePage] Hindi translation received:', translationResult.hindiRecipe);
+      console.log('[HomePage] Hindi translation received. Recipe Name (HI):', translationResult.hindiRecipe.recipeName);
       setCurrentHindiRecipe(translationResult.hindiRecipe);
        toast({
         title: "अनुवाद सफल!",
@@ -241,4 +241,3 @@ export default function HomePage() {
     </div>
   );
 }
-

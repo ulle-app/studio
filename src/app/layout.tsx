@@ -13,6 +13,7 @@ const ptSans = PT_Sans({
 export const metadata: Metadata = {
   title: 'Fridge Feast',
   description: 'Generate recipes from ingredients in your fridge!',
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({

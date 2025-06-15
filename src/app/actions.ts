@@ -3,7 +3,7 @@
 // TODO: Fix this file
 'use server';
 
-import { generateRecipe, type GenerateRecipeInput, type GenerateRecipeOutput } from '@/ai/flows/generate-recipe';
+import { generateRecipe, type GenerateRecipeInput, type MultipleRecipesOutput, type GenerateRecipeOutput } from '@/ai/flows/generate-recipe';
 import { translateRecipeToHindi, type TranslateRecipeInput, type TranslateRecipeOutput } from '@/ai/flows/translate-recipe';
 import { generateRecipeImage, type GenerateRecipeImageInput, type GenerateRecipeImageOutput } from '@/ai/flows/generate-recipe-image';
 import { z } from 'zod';
@@ -15,7 +15,7 @@ const ingredientsSchema = z.object({
 export async function handleGenerateRecipeAction(
   prevState: any,
   formData: FormData
-): Promise<{ recipe?: GenerateRecipeOutput; error?: string; inputError?: string }> {
+): Promise<{ recipes?: GenerateRecipeOutput[]; error?: string; inputError?: string }> {
   const rawIngredients = formData.get('ingredients');
   console.log('[Action:Generate] Received raw ingredients from form:', rawIngredients);
   
@@ -35,21 +35,30 @@ export async function handleGenerateRecipeAction(
   console.log('[Action:Generate] Validated ingredients, calling generateRecipe flow with:', ingredients);
 
   try {
-    const recipeOutput = await generateRecipe({ ingredients } as GenerateRecipeInput);
-    console.log('[Action:Generate] Received output from generateRecipe flow:', recipeOutput);
+    // The generateRecipe flow now returns MultipleRecipesOutput
+    const multipleRecipesOutput: MultipleRecipesOutput = await generateRecipe({ ingredients } as GenerateRecipeInput);
+    console.log('[Action:Generate] Received output from generateRecipe flow:', multipleRecipesOutput);
     
-    if (!recipeOutput || typeof recipeOutput.recipeName !== 'string' || typeof recipeOutput.instructions !== 'string') {
-        console.error("[Action:Generate] AI returned incomplete or malformed recipe structure:", recipeOutput);
-        return { error: "Failed to generate a complete recipe. The AI returned an unexpected or incomplete structure. Please try again." };
+    if (!multipleRecipesOutput || !Array.isArray(multipleRecipesOutput.generatedRecipes) || multipleRecipesOutput.generatedRecipes.length === 0) {
+        console.error("[Action:Generate] AI returned incomplete or malformed recipe list structure:", multipleRecipesOutput);
+        return { error: "Failed to generate recipes. The AI returned an unexpected or incomplete structure. Please try again." };
     }
     
-    const finalRecipeOutput: GenerateRecipeOutput = {
-        ...recipeOutput,
-        ingredients: Array.isArray(recipeOutput.ingredients) ? recipeOutput.ingredients : [],
-    };
+    // Ensure each recipe in the list is well-formed
+    const validatedRecipes = multipleRecipesOutput.generatedRecipes.map(recipe => {
+        if (typeof recipe.recipeName !== 'string' || typeof recipe.instructions !== 'string') {
+            console.error("[Action:Generate] An individual recipe in the list is malformed:", recipe);
+            // Optionally, filter out malformed recipes or throw a more specific error
+            // For now, we'll rely on the flow's schema validation primarily
+        }
+        return {
+            ...recipe,
+            ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients : [],
+        };
+    });
     
-    console.log('[Action:Generate] Successfully processed recipe:', finalRecipeOutput.recipeName);
-    return { recipe: finalRecipeOutput };
+    console.log('[Action:Generate] Successfully processed recipes. Count:', validatedRecipes.length);
+    return { recipes: validatedRecipes }; // Return the array of recipes
   } catch (e: unknown) {
     console.error("[Action:Generate] Error during recipe generation (full error object):", e);
     let errorMessage = "An unexpected error occurred while generating the recipe. This could be due to network issues or an internal AI service problem. Please try again later.";
@@ -81,7 +90,7 @@ export async function handleGenerateRecipeAction(
 
 
 export async function handleTranslateRecipeAction(
-  englishRecipe: GenerateRecipeOutput
+  englishRecipe: GenerateRecipeOutput // This action still handles one recipe at a time
 ): Promise<{ hindiRecipe?: TranslateRecipeOutput; error?: string }> {
   console.log('[Action:Translate] Received English recipe for translation:', englishRecipe);
 
@@ -130,7 +139,7 @@ export async function handleTranslateRecipeAction(
 
 
 export async function handleGenerateImageAction(
-  recipeName: string
+  recipeName: string // This action still handles one recipe name at a time
 ): Promise<{ imageDataUri?: string; error?: string }> {
   console.log('[Action:GenerateImage] Received recipe name for image generation:', recipeName);
 
@@ -164,3 +173,4 @@ export async function handleGenerateImageAction(
     return { error: errorMessage };
   }
 }
+

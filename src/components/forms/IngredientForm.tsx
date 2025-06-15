@@ -9,11 +9,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Sparkles, Loader2 } from 'lucide-react';
-import type { GenerateRecipeOutput } from '@/ai/flows/generate-recipe';
+import type { GenerateRecipeOutput } from '@/ai/flows/generate-recipe'; // Single recipe type for individual items
 
 interface IngredientFormProps {
-  formAction: (prevState: any, formData: FormData) => Promise<{ recipe?: GenerateRecipeOutput; error?: string; inputError?: string }>;
-  onRecipeGenerated: (recipe: GenerateRecipeOutput) => void;
+  formAction: (prevState: any, formData: FormData) => Promise<{ recipes?: GenerateRecipeOutput[]; error?: string; inputError?: string }>;
+  onRecipeGenerated: (recipes: GenerateRecipeOutput[]) => void; // Expects an array of recipes
   onError: (message: string) => void;
 }
 
@@ -30,12 +30,12 @@ function SubmitButton() {
       {pending ? (
         <>
           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          Generating Recipe...
+          Generating Recipes...
         </>
       ) : (
         <>
           <Sparkles className="mr-2 h-5 w-5" />
-          Generate Recipe
+          Generate Recipes
         </>
       )}
     </Button>
@@ -43,16 +43,16 @@ function SubmitButton() {
 }
 
 export function IngredientForm({ formAction, onRecipeGenerated, onError }: IngredientFormProps) {
-  const initialState: { recipe?: GenerateRecipeOutput; error?: string; inputError?: string } = {};
+  const initialState: { recipes?: GenerateRecipeOutput[]; error?: string; inputError?: string } = {};
   const [state, dispatch] = useActionState(formAction, initialState);
   const formRef = useRef<HTMLFormElement>(null);
   const ingredientsTextAreaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     console.log('[IngredientForm] Form state changed:', state);
-    if (state?.recipe) {
-      console.log('[IngredientForm] Recipe generated, calling onRecipeGenerated.');
-      onRecipeGenerated(state.recipe);
+    if (state?.recipes && Array.isArray(state.recipes)) {
+      console.log('[IngredientForm] Recipes generated, calling onRecipeGenerated with count:', state.recipes.length);
+      onRecipeGenerated(state.recipes); // Pass the array of recipes
       if (formRef.current) {
         formRef.current.reset(); 
       }
@@ -61,11 +61,11 @@ export function IngredientForm({ formAction, onRecipeGenerated, onError }: Ingre
       }
     }
     
-    if (state?.error && !state?.recipe) {
+    if (state?.error && !state?.recipes) {
       console.error('[IngredientForm] Error received from action, calling onError:', state.error);
       onError(state.error);
     }
-    if (state?.inputError && !state?.recipe) {
+    if (state?.inputError && !state?.recipes) {
       console.warn('[IngredientForm] Input error received from action:', state.inputError);
     }
   }, [state, onRecipeGenerated, onError]);
@@ -74,17 +74,9 @@ export function IngredientForm({ formAction, onRecipeGenerated, onError }: Ingre
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       if (formRef.current) {
-        // Check if the textarea has content before submitting
         const formData = new FormData(formRef.current);
         const ingredients = formData.get('ingredients') as string;
         if (ingredients && ingredients.trim().length > 0) {
-          // Create a temporary submit button to trigger form data construction if one doesn't exist or isn't easily accessible
-          // Or, if your submit button is always present, you can use:
-          // const submitButton = formRef.current.querySelector('button[type="submit"]');
-          // if (submitButton instanceof HTMLButtonElement) {
-          //  submitButton.click(); // This might not always work as expected with useActionState
-          // }
-          // Prefer direct form submission or dispatch
           formRef.current.requestSubmit();
         }
       }
@@ -109,7 +101,7 @@ export function IngredientForm({ formAction, onRecipeGenerated, onError }: Ingre
           aria-invalid={!!state?.inputError}
           onKeyDown={handleKeyDown}
         />
-        {state?.inputError && !state?.recipe && (
+        {state?.inputError && !state?.recipes && (
           <p id="ingredients-error" className="mt-2 text-sm text-destructive font-medium">
             {state.inputError}
           </p>
@@ -122,3 +114,4 @@ export function IngredientForm({ formAction, onRecipeGenerated, onError }: Ingre
     </form>
   );
 }
+

@@ -18,26 +18,34 @@ import { ChefHat, BookOpen, History, EyeIcon, Utensils } from 'lucide-react';
 
 export default function HomePage() {
   const [currentRecipe, setCurrentRecipe] = useState<GenerateRecipeOutput | null>(null);
-  const [allRecipes, setAllRecipes] = useLocalStorage<GenerateRecipeOutput[]>('fridgeFeastRecipes', []);
+  
+  // Memoize the initial value for allRecipes to ensure stable reference
+  const initialRecipes = useMemo(() => [], []);
+  const [allRecipes, setAllRecipes] = useLocalStorage<GenerateRecipeOutput[]>('fridgeFeastRecipes', initialRecipes);
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [viewingAllRecipes, setViewingAllRecipes] = useState(false);
   const [clientLoaded, setClientLoaded] = useState(false);
 
   useEffect(() => {
     setClientLoaded(true);
+    console.log('[HomePage] Client loaded state set to true.');
   }, []);
 
 
   const { toast } = useToast();
 
   const handleRecipeGenerated = useCallback((recipe: GenerateRecipeOutput) => {
+    console.log('[HomePage] handleRecipeGenerated called with:', recipe);
     setCurrentRecipe(recipe);
     setAllRecipes(prevRecipes => {
       const recipeSignature = `${recipe.recipeName}-${recipe.instructions?.substring(0, 20) ?? ''}`;
       const isDuplicate = prevRecipes.some(r => `${r.recipeName}-${r.instructions?.substring(0,20) ?? ''}` === recipeSignature);
-      if (isDuplicate) { // If duplicate, move to top
+      if (isDuplicate) { 
+        console.log('[HomePage] Duplicate recipe detected, moving to top.');
         return [recipe, ...prevRecipes.filter(r => `${r.recipeName}-${r.instructions?.substring(0,20) ?? ''}` !== recipeSignature)];
       }
+      console.log('[HomePage] Adding new recipe to allRecipes.');
       return [recipe, ...prevRecipes];
     });
     setViewingAllRecipes(false);
@@ -56,6 +64,7 @@ export default function HomePage() {
   }, [setCurrentRecipe, setAllRecipes, setViewingAllRecipes, setSearchQuery, toast]);
 
   const handleGenerationError = useCallback((message: string) => {
+    console.error('[HomePage] handleGenerationError called with message:', message);
     toast({
       variant: "destructive",
       title: "Oops! Something went wrong.",
@@ -76,6 +85,7 @@ export default function HomePage() {
   const recipesToDisplay = searchQuery ? filteredRecipes : allRecipes;
 
   if (!clientLoaded) {
+    console.log('[HomePage] Client not loaded yet, rendering loading state.');
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col">
         <AppHeader />

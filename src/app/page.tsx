@@ -23,7 +23,6 @@ export default function HomePage() {
   const [currentHindiRecipe, setCurrentHindiRecipe] = useState<TranslateRecipeOutput | null>(null);
   const [currentLanguage, setCurrentLanguage] = useState<'en' | 'hi'>('en');
   const [isTranslating, setIsTranslating] = useState(false);
-  const [currentRecipeImage, setCurrentRecipeImage] = useState<string | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   
   const initialRecipes = useMemo(() => [], []);
@@ -40,39 +39,80 @@ export default function HomePage() {
 
   const { toast } = useToast();
 
-  const handleRecipeGenerated = useCallback(async (recipe: GenerateRecipeOutput) => {
-    console.log('[HomePage] handleRecipeGenerated called. Recipe Name (EN):', recipe.recipeName);
-    setCurrentEnglishRecipe(recipe);
-    setCurrentHindiRecipe(null); 
-    setCurrentRecipeImage(null);
-    setCurrentLanguage('en'); 
-    setAllRecipes(prevRecipes => {
-      const recipeSignature = `${recipe.recipeName}-${recipe.instructions?.substring(0, 20) ?? ''}`;
-      const isDuplicate = prevRecipes.some(r => `${r.recipeName}-${r.instructions?.substring(0,20) ?? ''}` === recipeSignature);
-      if (isDuplicate) { 
-        console.log('[HomePage] Duplicate recipe detected, moving to top.');
-        return [recipe, ...prevRecipes.filter(r => `${r.recipeName}-${r.instructions?.substring(0,20) ?? ''}` !== recipeSignature)];
-      }
-      console.log('[HomePage] Adding new English recipe to allRecipes.');
-      return [recipe, ...prevRecipes];
-    });
+  const handleRecipeGenerated = useCallback(async (recipeOutput: GenerateRecipeOutput) => {
+    console.log('[HomePage] handleRecipeGenerated called. Base Recipe Name (EN):', recipeOutput.recipeName);
+    
+    // Stage 1: Set base recipe and start image generation
+    setCurrentEnglishRecipe(recipeOutput); // Show text part of recipe immediately
+    setCurrentHindiRecipe(null);
+    setCurrentLanguage('en');
     setViewingAllRecipes(false);
     setSearchQuery('');
-    
+    setIsGeneratingImage(true);
+
     toast({
       title: "Voilà! Recipe Generated!",
       description: (
         <div className="flex items-center">
           <Utensils className="h-5 w-5 mr-2 text-accent" />
-          <span>Your recipe for "{recipe.recipeName}" is ready. Now processing...</span>
+          <span>Your recipe for "{recipeOutput.recipeName}" is ready. Now generating image & translation...</span>
         </div>
       ),
       duration: 4000,
     });
 
+    let enrichedRecipe = { ...recipeOutput };
+
+    // Stage 2: Generate Image
+    console.log('[HomePage] Triggering image generation for recipe:', recipeOutput.recipeName);
+    const imageResult = await handleGenerateImageAction(recipeOutput.recipeName);
+    setIsGeneratingImage(false);
+
+    if (imageResult.imageDataUri) {
+      console.log('[HomePage] Image generated successfully for', recipeOutput.recipeName);
+      enrichedRecipe.imageDataUri = imageResult.imageDataUri;
+      // Update currentEnglishRecipe with the image URI so RecipeCard re-renders
+      setCurrentEnglishRecipe(prev => prev ? { ...prev, imageDataUri: imageResult.imageDataUri } : null);
+      toast({
+        title: "Image Ready!",
+        description: (
+          <div className="flex items-center">
+            <ImageIcon className="h-5 w-5 mr-2 text-accent" />
+            <span>An image for "{recipeOutput.recipeName}" has been generated.</span>
+          </div>
+        ),
+        duration: 5000,
+      });
+    } else if (imageResult.error) {
+      console.error('[HomePage] Image generation error:', imageResult.error);
+      toast({
+        variant: "destructive",
+        title: "Image Generation Failed",
+        description: `Could not generate an image for "${recipeOutput.recipeName}". ${imageResult.error}`,
+        duration: 7000,
+      });
+    }
+    
+    // Stage 3: Update allRecipes with the (potentially) image-enriched recipe
+    setAllRecipes(prevRecipes => {
+      const recipeSignature = `${enrichedRecipe.recipeName}-${enrichedRecipe.instructions?.substring(0, 20) ?? ''}`;
+      const existingRecipeIndex = prevRecipes.findIndex(r => `${r.recipeName}-${r.instructions?.substring(0,20) ?? ''}` === recipeSignature);
+
+      if (existingRecipeIndex > -1) {
+        console.log('[HomePage] Duplicate recipe detected, updating and moving to top.');
+        const updatedRecipes = [...prevRecipes];
+        updatedRecipes[existingRecipeIndex] = enrichedRecipe; // Update with new data (e.g., image)
+        return [updatedRecipes[existingRecipeIndex], ...updatedRecipes.slice(0, existingRecipeIndex), ...updatedRecipes.slice(existingRecipeIndex + 1)];
+      }
+      console.log('[HomePage] Adding new English recipe (with image if available) to allRecipes.');
+      return [enrichedRecipe, ...prevRecipes];
+    });
+
+
+    // Stage 4: Translate
     setIsTranslating(true);
-    console.log('[HomePage] Triggering translation for recipe:', recipe.recipeName);
-    const translationResult = await handleTranslateRecipeAction(recipe);
+    console.log('[HomePage] Triggering translation for recipe:', enrichedRecipe.recipeName);
+    const translationResult = await handleTranslateRecipeAction(enrichedRecipe); // Pass the enriched recipe
     setIsTranslating(false);
 
     if (translationResult.hindiRecipe) {
@@ -83,7 +123,7 @@ export default function HomePage() {
         description: (
           <div className="flex items-center">
             <Languages className="h-5 w-5 mr-2 text-accent" />
-            <span>"{recipe.recipeName}" का हिंदी अनुवाद तैयार है। Generating image...</span> 
+            <span>"{enrichedRecipe.recipeName}" का हिंदी अनुवाद तैयार है।</span> 
           </div>
         ),
         duration: 5000,
@@ -93,45 +133,18 @@ export default function HomePage() {
       toast({
         variant: "destructive",
         title: "Translation Failed",
-        description: `Could not translate "${recipe.recipeName}" to Hindi. ${translationResult.error}. Still attempting to generate image.`,
+        description: `Could not translate "${enrichedRecipe.recipeName}" to Hindi. ${translationResult.error}.`,
         duration: 7000,
       });
     }
 
-    // Generate image
-    setIsGeneratingImage(true);
-    console.log('[HomePage] Triggering image generation for recipe:', recipe.recipeName);
-    const imageResult = await handleGenerateImageAction(recipe.recipeName);
-    setIsGeneratingImage(false);
+  }, [setCurrentEnglishRecipe, setAllRecipes, toast, setCurrentHindiRecipe, setIsTranslating, setIsGeneratingImage, setCurrentLanguage, setViewingAllRecipes, setSearchQuery]);
 
-    if (imageResult.imageDataUri) {
-      console.log('[HomePage] Image generated successfully for', recipe.recipeName);
-      setCurrentRecipeImage(imageResult.imageDataUri);
-      toast({
-        title: "Image Ready!",
-        description: (
-          <div className="flex items-center">
-            <ImageIcon className="h-5 w-5 mr-2 text-accent" />
-            <span>An image for "{recipe.recipeName}" has been generated.</span>
-          </div>
-        ),
-        duration: 5000,
-      });
-    } else if (imageResult.error) {
-      console.error('[HomePage] Image generation error:', imageResult.error);
-      setCurrentRecipeImage(null); // Ensure no old image is shown
-      toast({
-        variant: "destructive",
-        title: "Image Generation Failed",
-        description: `Could not generate an image for "${recipe.recipeName}". ${imageResult.error}`,
-        duration: 7000,
-      });
-    }
-
-  }, [setCurrentEnglishRecipe, setAllRecipes, toast, setCurrentHindiRecipe, setIsTranslating, setCurrentLanguage, setViewingAllRecipes, setSearchQuery, setCurrentRecipeImage, setIsGeneratingImage]);
 
   const handleGenerationError = useCallback((message: string) => {
     console.error('[HomePage] handleGenerationError called with message:', message);
+    setIsGeneratingImage(false); // Ensure loading state is reset on error
+    setIsTranslating(false);
     toast({
       variant: "destructive",
       title: "Oops! Something went wrong.",
@@ -145,12 +158,15 @@ export default function HomePage() {
   };
 
   const recipeForDisplay = useMemo(() => {
-    if (currentLanguage === 'hi' && currentHindiRecipe) {
+    if (currentLanguage === 'hi' && currentHindiRecipe && currentEnglishRecipe) {
       return { 
+        // Base the Hindi display on the English recipe's structure, but with Hindi text
+        // and retain the original English recipe's image URI
+        ...currentEnglishRecipe, // This ensures imageDataUri and other potential fields are carried over
         recipeName: currentHindiRecipe.recipeName,
         ingredients: currentHindiRecipe.ingredients,
         instructions: currentHindiRecipe.instructions,
-      } as GenerateRecipeOutput; // Cast to fit RecipeCard's expectation
+      } as GenerateRecipeOutput;
     }
     return currentEnglishRecipe;
   }, [currentLanguage, currentEnglishRecipe, currentHindiRecipe]);
@@ -163,6 +179,44 @@ export default function HomePage() {
       (recipe.ingredients && recipe.ingredients.some(ing => ing.toLowerCase().includes(lowerCaseQuery)))
     );
   }, [allRecipes, searchQuery]);
+  
+  // When a recipe is selected from history, set it as current and try to generate image if missing
+  const viewRecipeFromHistory = useCallback(async (recipe: GenerateRecipeOutput) => {
+    console.log('[HomePage] Viewing recipe from history:', recipe.recipeName);
+    setCurrentEnglishRecipe(recipe);
+    setCurrentHindiRecipe(null); // Clear previous Hindi version
+    setCurrentLanguage('en');
+    setViewingAllRecipes(false); // Go back to single recipe view
+    setSearchQuery('');
+
+    // If image is missing, try to generate it
+    if (!recipe.imageDataUri) {
+      console.log('[HomePage] Image missing for historical recipe, attempting generation:', recipe.recipeName);
+      setIsGeneratingImage(true);
+      const imageResult = await handleGenerateImageAction(recipe.recipeName);
+      setIsGeneratingImage(false);
+
+      if (imageResult.imageDataUri) {
+        const updatedRecipeWithImage = { ...recipe, imageDataUri: imageResult.imageDataUri };
+        setCurrentEnglishRecipe(updatedRecipeWithImage);
+        // Update this specific recipe in allRecipes as well
+        setAllRecipes(prevs => prevs.map(r => r.recipeName === updatedRecipeWithImage.recipeName && r.instructions === updatedRecipeWithImage.instructions ? updatedRecipeWithImage : r));
+        toast({ title: "Image Generated!", description: `Image for "${recipe.recipeName}" is ready.` });
+      } else {
+        toast({ variant: "destructive", title: "Image Failed", description: `Could not generate image for "${recipe.recipeName}".` });
+      }
+    }
+    
+    // Also try to translate if showing it as current recipe
+    setIsTranslating(true);
+    const translationResult = await handleTranslateRecipeAction(recipe);
+    setIsTranslating(false);
+    if (translationResult.hindiRecipe) {
+      setCurrentHindiRecipe(translationResult.hindiRecipe);
+    }
+
+  }, [setCurrentEnglishRecipe, setAllRecipes, toast, setCurrentHindiRecipe, setIsTranslating, setIsGeneratingImage, setCurrentLanguage, setViewingAllRecipes, setSearchQuery]);
+
 
   const recipesToDisplayInList = searchQuery ? filteredRecipes : allRecipes;
 
@@ -200,13 +254,13 @@ export default function HomePage() {
               <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 {currentEnglishRecipe && currentHindiRecipe && (
                   <Button variant="outline" onClick={toggleLanguage} className="w-full sm:w-auto" disabled={isTranslating && !currentHindiRecipe}>
-                    {isTranslating && !currentHindiRecipe ? (
+                    {isTranslating && !currentHindiRecipe && currentLanguage === 'en' ? ( // Only show loader if translating TO Hindi
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
                       <Languages className="mr-2 h-4 w-4" />
                     )}
-                    {isTranslating && !currentHindiRecipe
-                      ? (currentLanguage === 'en' ? 'Translating...' : 'अनुवाद हो रहा है...')
+                    {isTranslating && !currentHindiRecipe && currentLanguage === 'en'
+                      ? 'Translating...'
                       : (currentLanguage === 'en' ? 'हिंदी में देखें' : 'View in English')}
                   </Button>
                 )}
@@ -219,11 +273,10 @@ export default function HomePage() {
               </div>
             </div>
             <RecipeCard 
-              recipe={recipeForDisplay} 
-              imageDataUri={currentRecipeImage}
-              isGeneratingImage={isGeneratingImage}
+              recipe={recipeForDisplay}
+              isGeneratingImage={isGeneratingImage && !recipeForDisplay.imageDataUri} // Show loader if generating and no image yet
             />
-             {(isTranslating && !currentHindiRecipe && currentEnglishRecipe) && (
+             {(isTranslating && !currentHindiRecipe && currentEnglishRecipe && currentLanguage === 'en') && (
                 <div className="mt-4 flex items-center justify-center text-muted-foreground">
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   <span>{'Translating to Hindi...'}</span>
@@ -253,6 +306,7 @@ export default function HomePage() {
                 emptyStateMessage={searchQuery 
                   ? (currentLanguage === 'en' ? "No recipes match your search." : "आपकी खोज से कोई रेसिपी मेल नहीं खाती।")
                   : (currentLanguage === 'en' ? "Your recipe history is empty. Generate some recipes!" : "आपका रेसिपी इतिहास खाली है। कुछ रेसिपी बनाएं!")}
+                onViewRecipe={viewRecipeFromHistory}
               />
             </section>
           </>

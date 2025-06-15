@@ -23,6 +23,7 @@ const GenerateRecipeOutputSchema = z.object({
   recipeName: z.string().describe('The name of the generated Indian recipe.'),
   ingredients: z.array(z.string()).describe('The list of non-staple ingredients required for the Indian recipe. Common kitchen staples (e.g., salt, pepper, oil, sugar, flour, common Indian spices like turmeric, cumin, coriander powder) should generally be excluded. This can be an empty array if all ingredients are staples or no specific ingredients are needed beyond staples.'),
   instructions: z.string().describe('Step-by-step instructions for preparing the Indian recipe.'),
+  imageDataUri: z.string().optional().describe("The data URI of an image for the recipe, if generated. Expected format: 'data:image/png;base64,<encoded_data>'."),
 });
 export type GenerateRecipeOutput = z.infer<typeof GenerateRecipeOutputSchema>;
 
@@ -46,6 +47,7 @@ Your task is to generate a complete, simple but distinct Indian recipe. You MUST
 3.  Clear, step-by-step \`instructions\` for preparing the recipe.
 
 Ensure all fields in the output schema (\`recipeName\`, \`ingredients\`, \`instructions\`) are populated. The \`ingredients\` list can be empty if all provided ingredients are determined to be staples and no other non-staple ingredients are needed.
+Do NOT populate the \`imageDataUri\` field. It will be handled separately.
   `,
 });
 
@@ -79,4 +81,3 @@ const generateRecipeFlow = ai.defineFlow(
     }
   }
 );
-

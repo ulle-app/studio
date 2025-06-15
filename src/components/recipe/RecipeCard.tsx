@@ -6,12 +6,13 @@ import Image from 'next/image';
 
 interface RecipeCardProps {
   recipe: GenerateRecipeOutput;
-  imageDataUri?: string | null;
   isGeneratingImage?: boolean;
 }
 
-export function RecipeCard({ recipe, imageDataUri, isGeneratingImage }: RecipeCardProps) {
+export function RecipeCard({ recipe, isGeneratingImage }: RecipeCardProps) {
   if (!recipe) return null;
+
+  const displayImage = recipe.imageDataUri;
 
   return (
     <Card className="w-full shadow-xl border-primary/20 rounded-xl overflow-hidden bg-card">
@@ -22,16 +23,16 @@ export function RecipeCard({ recipe, imageDataUri, isGeneratingImage }: RecipeCa
         </div>
       </CardHeader>
       <CardContent className="space-y-8 p-6">
-        {isGeneratingImage && (
+        {isGeneratingImage && !displayImage && (
           <div className="flex flex-col items-center justify-center p-6 border border-dashed border-border rounded-lg bg-muted/50 aspect-video">
             <Loader2 className="h-12 w-12 text-primary animate-spin mb-3" />
             <p className="text-muted-foreground text-center">Generating recipe image...</p>
           </div>
         )}
-        {!isGeneratingImage && imageDataUri && (
+        {!isGeneratingImage && displayImage && (
           <div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-md border border-border">
             <Image 
-              src={imageDataUri} 
+              src={displayImage} 
               alt={`Image of ${recipe.recipeName}`} 
               layout="fill" 
               objectFit="cover"
@@ -40,7 +41,8 @@ export function RecipeCard({ recipe, imageDataUri, isGeneratingImage }: RecipeCa
             />
           </div>
         )}
-        {!isGeneratingImage && !imageDataUri && (
+        {/* Show CameraOff only if not generating and no image URI */}
+        {!isGeneratingImage && !displayImage && (
            <div className="flex flex-col items-center justify-center p-6 border border-dashed border-border rounded-lg bg-muted/50 aspect-video" data-ai-hint="food cooking">
             <CameraOff className="h-12 w-12 text-muted-foreground mb-3" />
             <p className="text-muted-foreground text-center">No image available for this recipe.</p>

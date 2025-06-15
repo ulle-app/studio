@@ -11,7 +11,7 @@ const ptSans = PT_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Recipe Feast',
+  title: 'Jhatpat Recipes',
   description: 'Generate delicious Indian recipes from ingredients you have!',
   manifest: '/manifest.json',
 };

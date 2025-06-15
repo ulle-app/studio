@@ -1,6 +1,6 @@
-# Firebase Studio
+# Jhatpat Recipes
 
-This is a NextJS starter in Firebase Studio.
+This is a NextJS starter in Firebase Studio, an app to generate Indian recipes.
 
 To get started, take a look at src/app/page.tsx.
 
@@ -56,4 +56,4 @@ To install and run the application locally, follow these steps:
 5.  **Access the application:**
     Open your browser and navigate to `http://localhost:9002` (or the port specified in your terminal output).
 
-That's it! You should have the Fridge Feast application running locally.
+That's it! You should have the Jhatpat Recipes application running locally.

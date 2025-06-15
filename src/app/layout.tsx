@@ -1,12 +1,19 @@
 import type { Metadata } from 'next';
-import { PT_Sans } from 'next/font/google';
+import { PT_Sans, Baloo_2 } from 'next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 const ptSans = PT_Sans({
   subsets: ['latin'],
   weight: ['400', '700'],
-  variable: '--font-pt-sans', // CSS variable for the font
+  variable: '--font-pt-sans', 
+  display: 'swap',
+});
+
+const baloo2 = Baloo_2({
+  subsets: ['devanagari', 'latin'],
+  weight: ['400', '700'],
+  variable: '--font-baloo-2',
   display: 'swap',
 });
 
@@ -22,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${ptSans.variable} h-full`}>
+    <html lang="en" className={`${ptSans.variable} ${baloo2.variable} h-full`}>
       <head>
         {/* Google Font <link> elements are not needed when using next/font */}
       </head>

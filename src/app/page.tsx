@@ -2,7 +2,7 @@
 // TODO: Fix this file
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { IngredientForm } from '@/components/forms/IngredientForm';
 import { RecipeCard } from '@/components/recipe/RecipeCard';
@@ -30,9 +30,8 @@ export default function HomePage() {
 
   const { toast } = useToast();
 
-  const handleRecipeGenerated = (recipe: GenerateRecipeOutput) => {
+  const handleRecipeGenerated = useCallback((recipe: GenerateRecipeOutput) => {
     setCurrentRecipe(recipe);
-    // Add to list, ensuring no exact duplicates based on name and first few instruction words
     setAllRecipes(prevRecipes => {
       const recipeSignature = `${recipe.recipeName}-${recipe.instructions?.substring(0, 20) ?? ''}`;
       const isDuplicate = prevRecipes.some(r => `${r.recipeName}-${r.instructions?.substring(0,20) ?? ''}` === recipeSignature);
@@ -41,8 +40,8 @@ export default function HomePage() {
       }
       return [recipe, ...prevRecipes];
     });
-    setViewingAllRecipes(false); 
-    setSearchQuery(''); 
+    setViewingAllRecipes(false);
+    setSearchQuery('');
     
     toast({
       title: "Voilà! Recipe Generated!",
@@ -54,16 +53,16 @@ export default function HomePage() {
       ),
       duration: 6000,
     });
-  };
+  }, [setCurrentRecipe, setAllRecipes, setViewingAllRecipes, setSearchQuery, toast]);
 
-  const handleGenerationError = (message: string) => {
+  const handleGenerationError = useCallback((message: string) => {
     toast({
       variant: "destructive",
       title: "Oops! Something went wrong.",
       description: message || "Failed to generate recipe. Please try again.",
       duration: 8000,
     });
-  };
+  }, [toast]);
 
   const filteredRecipes = useMemo(() => {
     if (!searchQuery) return allRecipes;

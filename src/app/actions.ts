@@ -1,3 +1,4 @@
+
 // @ts-nocheck
 // TODO: Fix this file
 'use server';
@@ -28,24 +29,43 @@ export async function handleGenerateRecipeAction(
   const ingredients = validatedFields.data.ingredients;
 
   try {
+    // The generateRecipe flow (and its Zod output schema) is responsible for ensuring
+    // the output structure is correct. If not, it should throw an error.
     const recipeOutput = await generateRecipe({ ingredients } as GenerateRecipeInput);
     
-    if (!recipeOutput || !recipeOutput.recipeName || !recipeOutput.instructions) {
-        console.error("AI returned incomplete recipe:", recipeOutput);
-        return { error: "Failed to generate a complete recipe. The AI returned an unexpected response. Please try again with different ingredients or be more specific." };
-    }
-    // Ensure ingredients is an array, default to empty if missing
-    if (recipeOutput.ingredients === undefined) {
-      recipeOutput.ingredients = [];
+    // Defensive check, though Genkit's Zod validation + output! in flow should handle this.
+    if (!recipeOutput || typeof recipeOutput.recipeName !== 'string' || typeof recipeOutput.instructions !== 'string') {
+        console.error("AI returned incomplete or malformed recipe structure:", recipeOutput);
+        return { error: "Failed to generate a complete recipe. The AI returned an unexpected or incomplete structure. Please try again." };
     }
     
-    return { recipe: recipeOutput as GenerateRecipeOutput };
+    // Ensure ingredients is an array, default to empty if missing or not an array.
+    // Zod schema z.array(z.string()) should ensure it's an array (possibly empty).
+    const finalRecipeOutput: GenerateRecipeOutput = {
+        ...recipeOutput,
+        ingredients: Array.isArray(recipeOutput.ingredients) ? recipeOutput.ingredients : [],
+    };
+    
+    return { recipe: finalRecipeOutput };
   } catch (e: unknown) {
-    console.error("Error in handleGenerateRecipeAction:", e);
+    console.error("Error in handleGenerateRecipeAction (full error object):", e);
     let errorMessage = "An unexpected error occurred while generating the recipe. This could be due to network issues or an internal AI service problem. Please try again later.";
     if (e instanceof Error) {
       errorMessage = e.message;
+    } else if (typeof e === 'string') {
+      errorMessage = e;
+    } else if (e && typeof e === 'object' && 'message' in e && typeof e.message === 'string') {
+      errorMessage = e.message;
+    } else {
+      // Attempt to get a more detailed error string if it's some other object.
+      try {
+        errorMessage = `Genkit flow error: ${JSON.stringify(e)}`;
+      } catch {
+        // Fallback if stringify fails
+        errorMessage = "An unknown error occurred in the recipe generation flow.";
+      }
     }
     return { error: errorMessage };
   }
 }
+

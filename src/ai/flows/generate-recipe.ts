@@ -2,7 +2,7 @@
 'use server';
 
 /**
- * @fileOverview Generates a recipe based on a list of ingredients.
+ * @fileOverview Generates a recipe based on a list of ingredients, with a focus on Indian cuisine.
  *
  * - generateRecipe - A function that handles the recipe generation process.
  * - GenerateRecipeInput - The input type for the generateRecipe function.
@@ -20,9 +20,9 @@ const GenerateRecipeInputSchema = z.object({
 export type GenerateRecipeInput = z.infer<typeof GenerateRecipeInputSchema>;
 
 const GenerateRecipeOutputSchema = z.object({
-  recipeName: z.string().describe('The name of the generated recipe.'),
-  ingredients: z.array(z.string()).describe('The list of non-staple ingredients required for the recipe. Common kitchen staples (e.g., salt, pepper, oil, sugar, flour, common spices) should generally be excluded. This can be an empty array if all ingredients are staples or no specific ingredients are needed beyond staples.'),
-  instructions: z.string().describe('Step-by-step instructions for preparing the recipe.'),
+  recipeName: z.string().describe('The name of the generated Indian recipe.'),
+  ingredients: z.array(z.string()).describe('The list of non-staple ingredients required for the Indian recipe. Common kitchen staples (e.g., salt, pepper, oil, sugar, flour, common Indian spices like turmeric, cumin, coriander powder) should generally be excluded. This can be an empty array if all ingredients are staples or no specific ingredients are needed beyond staples.'),
+  instructions: z.string().describe('Step-by-step instructions for preparing the Indian recipe.'),
 });
 export type GenerateRecipeOutput = z.infer<typeof GenerateRecipeOutputSchema>;
 
@@ -36,13 +36,13 @@ const prompt = ai.definePrompt({
   name: 'generateRecipePrompt',
   input: {schema: GenerateRecipeInputSchema},
   output: {schema: GenerateRecipeOutputSchema},
-  prompt: `You are a creative recipe generator.
+  prompt: `You are a creative recipe generator specializing in Indian cuisine.
 Based on the ingredients provided by the user: {{{ingredients}}}
 
-Your task is to generate a complete recipe. You MUST provide:
+Your task is to generate a complete, simple but distinct Indian recipe. You MUST provide:
 1.  A concise and appealing \`recipeName\`.
 2.  A list of \`ingredients\` required for the recipe. This list should include any non-staple ingredients derived from the user's input and any other non-staple items you deem necessary for the recipe.
-    Common kitchen staples (such as salt, pepper, water, oil, sugar, flour, butter, eggs, milk, common spices like garlic powder or onion powder) should be assumed to be available and therefore EXCLUDED from this \`ingredients\` list, unless a specific, unusual quantity of a staple is crucial for the recipe. Focus on listing ingredients the user might need to specifically check if they have or purchase.
+    Common kitchen staples (such as salt, pepper, water, oil, sugar, flour, butter, eggs, milk, common Indian spices like turmeric powder, cumin powder, coriander powder, garam masala, ginger-garlic paste) should be assumed to be available and therefore EXCLUDED from this \`ingredients\` list, unless a specific, unusual quantity of a staple is crucial for the recipe. Focus on listing ingredients the user might need to specifically check if they have or purchase.
 3.  Clear, step-by-step \`instructions\` for preparing the recipe.
 
 Ensure all fields in the output schema (\`recipeName\`, \`ingredients\`, \`instructions\`) are populated. The \`ingredients\` list can be empty if all provided ingredients are determined to be staples and no other non-staple ingredients are needed.
@@ -67,7 +67,7 @@ const generateRecipeFlow = ai.defineFlow(
         console.error('[Flow:generateRecipeFlow] Prompt returned null or undefined output.');
         throw new Error('AI prompt returned no output.');
       }
-      // Ensure ingredients is always an array, even if AI fails to provide it correctly (though Zod schema should handle this)
+      // Ensure ingredients is always an array, even if AI fails to provide it correctly
       const finalOutput: GenerateRecipeOutput = {
         ...output,
         ingredients: Array.isArray(output.ingredients) ? output.ingredients : [],
@@ -79,3 +79,4 @@ const generateRecipeFlow = ai.defineFlow(
     }
   }
 );
+

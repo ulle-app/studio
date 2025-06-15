@@ -11,8 +11,8 @@ const ptSans = PT_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Fridge Feast',
-  description: 'Generate recipes from ingredients in your fridge!',
+  title: 'Recipe Feast',
+  description: 'Generate delicious Indian recipes from ingredients you have!',
   manifest: '/manifest.json',
 };
 

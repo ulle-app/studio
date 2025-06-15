@@ -19,9 +19,8 @@ import { ChefHat, BookOpen, History, EyeIcon, Utensils } from 'lucide-react';
 export default function HomePage() {
   const [currentRecipe, setCurrentRecipe] = useState<GenerateRecipeOutput | null>(null);
   
-  // Memoize the initial value for allRecipes to ensure stable reference
   const initialRecipes = useMemo(() => [], []);
-  const [allRecipes, setAllRecipes] = useLocalStorage<GenerateRecipeOutput[]>('fridgeFeastRecipes', initialRecipes);
+  const [allRecipes, setAllRecipes] = useLocalStorage<GenerateRecipeOutput[]>('recipeFeastRecipes', initialRecipes);
   
   const [searchQuery, setSearchQuery] = useState('');
   const [viewingAllRecipes, setViewingAllRecipes] = useState(false);
@@ -55,7 +54,7 @@ export default function HomePage() {
       title: "Voilà! Recipe Generated!",
       description: (
         <div className="flex items-center">
-          <Utensils className="h-5 w-5 mr-2 text-green-500" />
+          <Utensils className="h-5 w-5 mr-2 text-accent" />
           <span>Your recipe for "{recipe.recipeName}" is ready.</span>
         </div>
       ),
@@ -154,14 +153,14 @@ export default function HomePage() {
         {!currentRecipe && allRecipes.length === 0 && (
           <div className="text-center py-16 text-muted-foreground bg-card rounded-xl shadow-sm p-8 mt-8 border border-border/30">
             <BookOpen className="mx-auto h-20 w-20 mb-6 text-primary/60" />
-            <h2 className="text-2xl font-semibold mb-2 text-foreground">Welcome to Fridge Feast!</h2>
-            <p className="text-lg mb-1">Ready to discover delicious meals?</p>
+            <h2 className="text-2xl font-semibold mb-2 text-foreground">Welcome to Recipe Feast!</h2>
+            <p className="text-lg mb-1">Ready to discover delicious Indian meals?</p>
             <p>Enter your ingredients above and let the magic happen.</p>
           </div>
         )}
       </main>
       <footer className="py-6 border-t border-border/30 text-center text-muted-foreground text-sm bg-card mt-auto">
-          <p>&copy; {new Date().getFullYear()} Fridge Feast. Happy Cooking!</p>
+          <p>&copy; {new Date().getFullYear()} Recipe Feast. Happy Cooking!</p>
       </footer>
     </div>
   );

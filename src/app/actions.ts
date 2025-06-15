@@ -5,6 +5,7 @@
 
 import { generateRecipe, type GenerateRecipeInput, type GenerateRecipeOutput } from '@/ai/flows/generate-recipe';
 import { translateRecipeToHindi, type TranslateRecipeInput, type TranslateRecipeOutput } from '@/ai/flows/translate-recipe';
+import { generateRecipeImage, type GenerateRecipeImageInput, type GenerateRecipeImageOutput } from '@/ai/flows/generate-recipe-image';
 import { z } from 'zod';
 
 const ingredientsSchema = z.object({
@@ -123,6 +124,43 @@ export async function handleTranslateRecipeAction(
       errorMessage = e.message;
     }
     console.error("[Action:Translate] Error message:", errorMessage);
+    return { error: errorMessage };
+  }
+}
+
+
+export async function handleGenerateImageAction(
+  recipeName: string
+): Promise<{ imageDataUri?: string; error?: string }> {
+  console.log('[Action:GenerateImage] Received recipe name for image generation:', recipeName);
+
+  if (!recipeName) {
+    console.error('[Action:GenerateImage] Invalid recipe name data received.');
+    return { error: "Invalid recipe name provided for image generation." };
+  }
+
+  const input: GenerateRecipeImageInput = { recipeName };
+
+  try {
+    const imageOutput = await generateRecipeImage(input);
+    console.log('[Action:GenerateImage] Received image data URI from flow.');
+
+    if (!imageOutput || !imageOutput.imageDataUri) {
+        console.error("[Action:GenerateImage] AI returned no image data URI:", imageOutput);
+        return { error: "Failed to generate the recipe image. The AI returned no image data." };
+    }
+    return { imageDataUri: imageOutput.imageDataUri };
+  } catch (e: unknown) {
+    console.error("[Action:GenerateImage] Error during recipe image generation (full error object):", e);
+    let errorMessage = "An unexpected error occurred while generating the recipe image.";
+    if (e instanceof Error) {
+      errorMessage = e.message;
+    } else if (typeof e === 'string') {
+      errorMessage = e;
+    } else if (e && typeof e === 'object' && 'message' in e && typeof e.message === 'string') {
+      errorMessage = e.message;
+    }
+    console.error("[Action:GenerateImage] Error message:", errorMessage);
     return { error: errorMessage };
   }
 }

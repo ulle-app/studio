@@ -11,18 +11,20 @@ import { RecipeSearch } from '@/components/recipe/RecipeSearch';
 import { RecipeList } from '@/components/recipe/RecipeList';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { handleGenerateRecipeAction, handleTranslateRecipeAction } from './actions';
+import { handleGenerateRecipeAction, handleTranslateRecipeAction, handleGenerateImageAction } from './actions';
 import type { GenerateRecipeOutput } from '@/ai/flows/generate-recipe';
 import type { TranslateRecipeOutput } from '@/ai/flows/translate-recipe';
 import useLocalStorage from '@/hooks/use-local-storage';
 import { useToast } from "@/hooks/use-toast";
-import { ChefHat, BookOpen, History, EyeIcon, Utensils, Languages, Loader2 } from 'lucide-react';
+import { ChefHat, BookOpen, History, EyeIcon, Utensils, Languages, Loader2, Image as ImageIcon, CameraOff } from 'lucide-react';
 
 export default function HomePage() {
   const [currentEnglishRecipe, setCurrentEnglishRecipe] = useState<GenerateRecipeOutput | null>(null);
   const [currentHindiRecipe, setCurrentHindiRecipe] = useState<TranslateRecipeOutput | null>(null);
   const [currentLanguage, setCurrentLanguage] = useState<'en' | 'hi'>('en');
   const [isTranslating, setIsTranslating] = useState(false);
+  const [currentRecipeImage, setCurrentRecipeImage] = useState<string | null>(null);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   
   const initialRecipes = useMemo(() => [], []);
   const [allRecipes, setAllRecipes] = useLocalStorage<GenerateRecipeOutput[]>('jhatpatRecipes', initialRecipes);
@@ -42,6 +44,7 @@ export default function HomePage() {
     console.log('[HomePage] handleRecipeGenerated called. Recipe Name (EN):', recipe.recipeName);
     setCurrentEnglishRecipe(recipe);
     setCurrentHindiRecipe(null); 
+    setCurrentRecipeImage(null);
     setCurrentLanguage('en'); 
     setAllRecipes(prevRecipes => {
       const recipeSignature = `${recipe.recipeName}-${recipe.instructions?.substring(0, 20) ?? ''}`;
@@ -61,7 +64,7 @@ export default function HomePage() {
       description: (
         <div className="flex items-center">
           <Utensils className="h-5 w-5 mr-2 text-accent" />
-          <span>Your recipe for "{recipe.recipeName}" is ready. Now translating to Hindi...</span>
+          <span>Your recipe for "{recipe.recipeName}" is ready. Now processing...</span>
         </div>
       ),
       duration: 4000,
@@ -80,7 +83,7 @@ export default function HomePage() {
         description: (
           <div className="flex items-center">
             <Languages className="h-5 w-5 mr-2 text-accent" />
-            <span>"{recipe.recipeName}" का हिंदी अनुवाद तैयार है।</span> 
+            <span>"{recipe.recipeName}" का हिंदी अनुवाद तैयार है। Generating image...</span> 
           </div>
         ),
         duration: 5000,
@@ -90,11 +93,42 @@ export default function HomePage() {
       toast({
         variant: "destructive",
         title: "Translation Failed",
-        description: `Could not translate "${recipe.recipeName}" to Hindi. ${translationResult.error}`,
+        description: `Could not translate "${recipe.recipeName}" to Hindi. ${translationResult.error}. Still attempting to generate image.`,
         duration: 7000,
       });
     }
-  }, [setCurrentEnglishRecipe, setAllRecipes, toast, setCurrentHindiRecipe, setIsTranslating, setCurrentLanguage, setViewingAllRecipes, setSearchQuery]);
+
+    // Generate image
+    setIsGeneratingImage(true);
+    console.log('[HomePage] Triggering image generation for recipe:', recipe.recipeName);
+    const imageResult = await handleGenerateImageAction(recipe.recipeName);
+    setIsGeneratingImage(false);
+
+    if (imageResult.imageDataUri) {
+      console.log('[HomePage] Image generated successfully for', recipe.recipeName);
+      setCurrentRecipeImage(imageResult.imageDataUri);
+      toast({
+        title: "Image Ready!",
+        description: (
+          <div className="flex items-center">
+            <ImageIcon className="h-5 w-5 mr-2 text-accent" />
+            <span>An image for "{recipe.recipeName}" has been generated.</span>
+          </div>
+        ),
+        duration: 5000,
+      });
+    } else if (imageResult.error) {
+      console.error('[HomePage] Image generation error:', imageResult.error);
+      setCurrentRecipeImage(null); // Ensure no old image is shown
+      toast({
+        variant: "destructive",
+        title: "Image Generation Failed",
+        description: `Could not generate an image for "${recipe.recipeName}". ${imageResult.error}`,
+        duration: 7000,
+      });
+    }
+
+  }, [setCurrentEnglishRecipe, setAllRecipes, toast, setCurrentHindiRecipe, setIsTranslating, setCurrentLanguage, setViewingAllRecipes, setSearchQuery, setCurrentRecipeImage, setIsGeneratingImage]);
 
   const handleGenerationError = useCallback((message: string) => {
     console.error('[HomePage] handleGenerationError called with message:', message);
@@ -184,8 +218,12 @@ export default function HomePage() {
                 )}
               </div>
             </div>
-            <RecipeCard recipe={recipeForDisplay} />
-             {isTranslating && !currentHindiRecipe && currentEnglishRecipe && (
+            <RecipeCard 
+              recipe={recipeForDisplay} 
+              imageDataUri={currentRecipeImage}
+              isGeneratingImage={isGeneratingImage}
+            />
+             {(isTranslating && !currentHindiRecipe && currentEnglishRecipe) && (
                 <div className="mt-4 flex items-center justify-center text-muted-foreground">
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   <span>{'Translating to Hindi...'}</span>

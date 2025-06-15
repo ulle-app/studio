@@ -1,12 +1,16 @@
+
 import type { GenerateRecipeOutput } from '@/ai/flows/generate-recipe';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ListChecks, CookingPot, ChefHat } from 'lucide-react';
+import { ListChecks, CookingPot, ChefHat, Loader2, CameraOff } from 'lucide-react';
+import Image from 'next/image';
 
 interface RecipeCardProps {
   recipe: GenerateRecipeOutput;
+  imageDataUri?: string | null;
+  isGeneratingImage?: boolean;
 }
 
-export function RecipeCard({ recipe }: RecipeCardProps) {
+export function RecipeCard({ recipe, imageDataUri, isGeneratingImage }: RecipeCardProps) {
   if (!recipe) return null;
 
   return (
@@ -18,6 +22,31 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-8 p-6">
+        {isGeneratingImage && (
+          <div className="flex flex-col items-center justify-center p-6 border border-dashed border-border rounded-lg bg-muted/50 aspect-video">
+            <Loader2 className="h-12 w-12 text-primary animate-spin mb-3" />
+            <p className="text-muted-foreground text-center">Generating recipe image...</p>
+          </div>
+        )}
+        {!isGeneratingImage && imageDataUri && (
+          <div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-md border border-border">
+            <Image 
+              src={imageDataUri} 
+              alt={`Image of ${recipe.recipeName}`} 
+              layout="fill" 
+              objectFit="cover"
+              className="transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+              onLoadingComplete={(image) => image.classList.remove('opacity-0')}
+            />
+          </div>
+        )}
+        {!isGeneratingImage && !imageDataUri && (
+           <div className="flex flex-col items-center justify-center p-6 border border-dashed border-border rounded-lg bg-muted/50 aspect-video" data-ai-hint="food cooking">
+            <CameraOff className="h-12 w-12 text-muted-foreground mb-3" />
+            <p className="text-muted-foreground text-center">No image available for this recipe.</p>
+          </div>
+        )}
+
         <div>
           <h3 className="flex items-center text-xl sm:text-2xl font-semibold text-foreground mb-4">
             <ListChecks className="mr-3 h-6 w-6 text-accent flex-shrink-0" aria-hidden="true"/>

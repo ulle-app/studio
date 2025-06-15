@@ -46,6 +46,7 @@ Instructions (English):
 {{{instructions}}}
 
 Provide the translated recipe details in Hindi, ensuring the meaning and context are preserved.
+Pay close attention to culinary terms and ensure the instructions are clear, actionable, and culturally appropriate for Hindi-speaking users. Translate the meaning accurately, not just word-for-word.
 The output should be structured according to the provided schema with fields for translated recipe name, ingredients, and instructions.
 For ingredients, maintain the list format. For instructions, maintain the step-by-step format.
 Ensure all output fields are populated with accurate Hindi translations.
@@ -82,4 +83,3 @@ const translateRecipeFlow = ai.defineFlow(
     }
   }
 );
-

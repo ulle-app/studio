@@ -21,28 +21,11 @@ export type GenerateRecipeInput = z.infer<typeof GenerateRecipeInputSchema>;
 
 const GenerateRecipeOutputSchema = z.object({
   recipeName: z.string().describe('The name of the generated recipe.'),
-  ingredients: z.array(z.string()).describe('The list of ingredients required for the recipe. This can be an empty array if all ingredients are staples or no specific ingredients are needed beyond staples.'),
+  ingredients: z.array(z.string()).describe('The list of non-staple ingredients required for the recipe. Common kitchen staples (e.g., salt, pepper, oil, sugar, flour, common spices) should generally be excluded. This can be an empty array if all ingredients are staples or no specific ingredients are needed beyond staples.'),
   instructions: z.string().describe('Step-by-step instructions for preparing the recipe.'),
 });
 export type GenerateRecipeOutput = z.infer<typeof GenerateRecipeOutputSchema>;
 
-const isStapleTool = ai.defineTool(
-  {
-    name: 'isStaple',
-    description: 'Checks if an ingredient is a common kitchen staple (like salt, pepper, water, oil, sugar, flour, butter, eggs, milk). Call this for each ingredient provided by the user.',
-    inputSchema: z.object({
-      ingredient: z.string().describe('The ingredient to check.'),
-    }),
-    outputSchema: z.boolean(),
-  },
-  async (input) => {
-    console.log('[isStapleTool] Checking ingredient:', input.ingredient);
-    const stapleIngredients = ['salt', 'pepper', 'water', 'oil', 'sugar', 'flour', 'butter', 'eggs', 'milk']; // Expanded list
-    const result = stapleIngredients.includes(input.ingredient.toLowerCase().trim());
-    console.log('[isStapleTool] Is staple?', result);
-    return result;
-  }
-);
 
 export async function generateRecipe(input: GenerateRecipeInput): Promise<GenerateRecipeOutput> {
   console.log('[Flow:generateRecipe] Exported function called with input:', input);
@@ -53,19 +36,16 @@ const prompt = ai.definePrompt({
   name: 'generateRecipePrompt',
   input: {schema: GenerateRecipeInputSchema},
   output: {schema: GenerateRecipeOutputSchema},
-  tools: [isStapleTool],
   prompt: `You are a creative recipe generator.
 Based on the ingredients provided by the user: {{{ingredients}}}
 
 Your task is to generate a complete recipe. You MUST provide:
 1.  A concise and appealing \`recipeName\`.
-2.  A list of \`ingredients\` required for the recipe. For each ingredient the user provided, you MUST use the \`isStaple\` tool to determine if it's a common kitchen staple.
-    - If \`isStaple\` returns \`true\` for an ingredient, EXCLUDE it from the final \`ingredients\` list in your output.
-    - If \`isStaple\` returns \`false\`, INCLUDE it in the final \`ingredients\` list.
-    The final ingredients list may also include other non-staple items you deem necessary for the recipe that were not in the user's original list.
+2.  A list of \`ingredients\` required for the recipe. This list should include any non-staple ingredients derived from the user's input and any other non-staple items you deem necessary for the recipe.
+    Common kitchen staples (such as salt, pepper, water, oil, sugar, flour, butter, eggs, milk, common spices like garlic powder or onion powder) should be assumed to be available and therefore EXCLUDED from this \`ingredients\` list, unless a specific, unusual quantity of a staple is crucial for the recipe. Focus on listing ingredients the user might need to specifically check if they have or purchase.
 3.  Clear, step-by-step \`instructions\` for preparing the recipe.
 
-Ensure all fields in the output schema (\`recipeName\`, \`ingredients\`, \`instructions\`) are populated. The \`ingredients\` list can be empty if all provided ingredients are staples and no others are needed.
+Ensure all fields in the output schema (\`recipeName\`, \`ingredients\`, \`instructions\`) are populated. The \`ingredients\` list can be empty if all provided ingredients are determined to be staples and no other non-staple ingredients are needed.
   `,
 });
 
@@ -87,10 +67,15 @@ const generateRecipeFlow = ai.defineFlow(
         console.error('[Flow:generateRecipeFlow] Prompt returned null or undefined output.');
         throw new Error('AI prompt returned no output.');
       }
-      return output;
+      // Ensure ingredients is always an array, even if AI fails to provide it correctly (though Zod schema should handle this)
+      const finalOutput: GenerateRecipeOutput = {
+        ...output,
+        ingredients: Array.isArray(output.ingredients) ? output.ingredients : [],
+      };
+      return finalOutput;
     } catch (error) {
       console.error('[Flow:generateRecipeFlow] Error during prompt execution:', error);
-      throw error; // Re-throw the error to be caught by the server action
+      throw error; 
     }
   }
 );
